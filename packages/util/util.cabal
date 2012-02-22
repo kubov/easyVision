@@ -31,6 +31,7 @@ library
                         Util.Rotation
                         Util.Estimation
                         Util.Homogeneous
+                        Util.Geometry
                         Util.Covariance
                         Util.Probability
                         Util.Kalman
