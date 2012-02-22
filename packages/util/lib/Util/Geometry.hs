@@ -26,7 +26,7 @@ module Util.Geometry
     Conic, DualConic, Quadric, DualQuadric,
 
     Vectorable(toVector), Matrixlike(toMatrix),
-    mkTrans, Row2(..),Row3(..),Row4(..),Col2(..),Col3(..),Col4(..),
+    mkTrans, Dim2(..),Dim3(..),Dim4(..),
 
   -- * Transformations
 
@@ -37,6 +37,7 @@ module Util.Geometry
 
 import Util.Misc(Mat,Vec)
 import Numeric.LinearAlgebra(fromList,(@>),(><),fromRows,(<>))
+--import Foreign.Storable(Storable)
 
 ----------------------------------------------------------------------
 
@@ -157,79 +158,74 @@ data Dim2 a = Dim2 !a !a
 data Dim3 a = Dim3 !a !a !a
 data Dim4 a = Dim4 !a !a !a !a
 
+instance Vectorable (Dim2 Double) where
+    toVector (Dim2 x1 x2) = fromList [x1,x2]
+    fromVector v = Dim2 (v@>0) (v@>1)
+
+instance Vectorable (Dim3 Double) where
+    toVector (Dim3 x1 x2 x3) = fromList [x1,x2,x3]
+    fromVector v = Dim3 (v@>0) (v@>1) (v@>2)
+
+instance Vectorable (Dim4 Double) where
+    toVector (Dim4 x1 x2 x3 x4) = fromList [x1,x2,x3,x4]
+    fromVector v = Dim4 (v@>0) (v@>1) (v@>2) (v@>3)
 
 
-data Col2 = Col2 !Double !Double
-data Col3 = Col3 !Double !Double !Double
-data Col4 = Col4 !Double !Double !Double !Double
-
-data Row2 a = Row2 a a
-data Row3 a = Row3 a a a
-data Row4 a = Row4 a a a a
-
-instance Vectorable Col2 where
-    toVector (Col2 x1 x2) = fromList [x1,x2]
-    fromVector v = Col2 (v@>0) (v@>1)
-
-instance Vectorable Col3 where
-    toVector (Col3 x1 x2 x3) = fromList [x1,x2,x3]
-    fromVector v = Col3 (v@>0) (v@>1) (v@>2)
-
-instance Vectorable Col4 where
-    toVector (Col4 x1 x2 x3 x4) = fromList [x1,x2,x3,x4]
-    fromVector v = Col4 (v@>0) (v@>1) (v@>2) (v@>3)
-
-
-matrix2x2 :: Row2 Col2 -> Mat
-matrix2x2 (Row2 (Col2 x1 x2)
-                (Col2 x3 x4) ) = (3><3) [x1,x2,
+matrix2x2 :: Dim2 (Dim2 Double) -> Mat
+matrix2x2 (Dim2 (Dim2 x1 x2)
+                (Dim2 x3 x4) ) = (3><3) [x1,x2,
                                          x3,x4]
 
-matrix3x3 :: Row3 Col3 -> Mat
-matrix3x3 (Row3 (Col3 x1 x2 x3)
-                (Col3 x4 x5 x6)
-                (Col3 x7 x8 x9) ) = (3><3) [x1,x2,x3,
+matrix3x3 :: Dim3 (Dim3 Double) -> Mat
+matrix3x3 (Dim3 (Dim3 x1 x2 x3)
+                (Dim3 x4 x5 x6)
+                (Dim3 x7 x8 x9) ) = (3><3) [x1,x2,x3,
                                             x4,x5,x6,
                                             x7,x8,x9]
 
-matrix3x4 :: Row3 Col4 -> Mat
-matrix3x4 (Row3 r1 r2 r3) = fromRows (map toVector [r1,r2,r3])
+matrix3x4 :: Dim3 (Dim4 Double) -> Mat
+matrix3x4 (Dim3 r1 r2 r3) = fromRows (map toVector [r1,r2,r3])
 
-matrix4x4 :: Row4 Col4 -> Mat
-matrix4x4 (Row4 r1 r2 r3 r4) = fromRows (map toVector [r1,r2,r3,r4])
+matrix4x4 :: Dim4 (Dim4 Double) -> Mat
+matrix4x4 (Dim4 r1 r2 r3 r4) = fromRows (map toVector [r1,r2,r3,r4])
 
 type family MatrixShape  (m :: *)
 
-type instance MatrixShape Homography = Row3 Col3
-type instance MatrixShape Camera = Row3 Col4
-type instance MatrixShape Homography3D = Row4 Col4
-type instance MatrixShape Conic = Row3 Col3
-type instance MatrixShape DualConic = Row3 Col3
-type instance MatrixShape Quadric = Row4 Col4
-type instance MatrixShape DualQuadric = Row4 Col4
+type Dim2x2 = Dim2 (Dim2 Double)
+type Dim3x3 = Dim3 (Dim3 Double)
+type Dim3x4 = Dim3 (Dim4 Double)
+type Dim4x4 = Dim4 (Dim4 Double)
+
+type instance MatrixShape Homography = Dim3x3
+type instance MatrixShape Camera = Dim3x4
+type instance MatrixShape Homography3D = Dim4x4
+type instance MatrixShape Conic = Dim3x3
+type instance MatrixShape DualConic = Dim3x3
+type instance MatrixShape Quadric = Dim4x4
+type instance MatrixShape DualQuadric = Dim4x4
 
 class MatrixElem t where
     fromElements :: t -> Mat
 
-instance MatrixElem (Row3 Col3) where
+instance MatrixElem Dim3x3 where
     fromElements = matrix3x3
 
-instance MatrixElem (Row2 Col2) where
+instance MatrixElem Dim2x2 where
     fromElements = matrix2x2
 
-instance MatrixElem (Row3 Col4) where
+instance MatrixElem Dim3x4 where
     fromElements = matrix3x4
 
-instance MatrixElem (Row4 Col4) where
+instance MatrixElem Dim4x4 where
     fromElements = matrix4x4
 
 mkTrans :: (Matrixlike t, MatrixElem (MatrixShape t)) => MatrixShape t -> t
 mkTrans = unsafeFromMatrix . fromElements
 
-
+crossMat :: Vec -> Mat
 crossMat v = (3><3) [ 0,-c, b,
-                   c, 0,-a,
-                  -b, a, 0]
+                      c, 0,-a,
+                     -b, a, 0]
     where a = v@>0
           b = v@>1
           c = v@>2

@@ -39,6 +39,7 @@ import Unsafe.Coerce(unsafeCoerce)
 import Data.IORef
 import Util.Misc(debug)
 import Control.Concurrent
+import Util.Geometry(HPoint(..),Point3D(..),HPoint3D(..))
 
 ------------------------------------------------------------
 
@@ -96,6 +97,19 @@ instance Vertex Pixel where
 instance Vertex Point where
     vertex (Point x y) = vertex (Vertex2 (doubleGL x) (doubleGL y))
     vertexv = undefined
+
+instance Vertex HPoint where
+    vertex (HPoint x y w) = vertex (Vertex4 (doubleGL x) (doubleGL y) 0 (doubleGL w))
+    vertexv = undefined
+
+instance Vertex Point3D where
+    vertex (Point3D x y z) = vertex (Vertex3 (doubleGL x) (doubleGL y) (doubleGL z))
+    vertexv = undefined
+
+instance Vertex HPoint3D where
+    vertex (HPoint3D x y z w) = vertex (Vertex4 (doubleGL x) (doubleGL y) (doubleGL z) (doubleGL w))
+    vertexv = undefined
+
 
 instance Vertex [Double] where
     vertex [x,y]   = vertex (Vertex2 (doubleGL x) (doubleGL y))

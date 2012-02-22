@@ -52,7 +52,7 @@ import Data.Colour
 import Data.Colour.Names
 import Control.Monad(when)
 import GHC.Float(double2Float)
-
+import Util.Geometry(HPoint(..),Point3D(..),HPoint3D(..))
 
 -- | Types of images that can be shown in a window
 class Drawable a where
@@ -377,6 +377,25 @@ instance Renderable [Point] where
 
 instance Renderable Point where
   render p = render [p]
+
+instance Renderable [HPoint] where
+  render = renderPrimitive Points . mapM_ vertex
+
+instance Renderable HPoint where
+  render p = render [p]
+
+instance Renderable [Point3D] where
+  render = renderPrimitive Points . mapM_ vertex
+
+instance Renderable Point3D where
+  render p = render [p]
+
+instance Renderable [HPoint3D] where
+  render = renderPrimitive Points . mapM_ vertex
+
+instance Renderable HPoint3D where
+  render p = render [p]
+
 
 instance Renderable (Vector Double) where
     render v = renderPrimitive LineStrip (vertex $ fromColumns [t,v])
