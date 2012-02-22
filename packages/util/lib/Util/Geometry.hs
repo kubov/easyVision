@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
---, TypeSynonymInstances,  #-}
+--, TypeSynonymInstances,
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 -----------------------------------------------------------------------------
 {- |
@@ -25,10 +26,12 @@ module Util.Geometry
 
     Conic, DualConic, Quadric, DualQuadric,
 
-    Vectorable(toVector), Matrixlike(toMatrix),
+    Vectorable(..), Matrixlike(..),
     mkTrans, Dim2(..),Dim3(..),Dim4(..),
 
   -- * Transformations
+
+    Transf, Transformable(..),    
 
   -- * Util
     joinPoints, meetLines
@@ -36,7 +39,7 @@ module Util.Geometry
 ) where
 
 import Util.Misc(Mat,Vec)
-import Numeric.LinearAlgebra(fromList,(@>),(><),fromRows,(<>))
+import Numeric.LinearAlgebra(fromList,(@>),(><),toRows,fromRows,(<>),trans,inv)
 --import Foreign.Storable(Storable)
 
 ----------------------------------------------------------------------
@@ -73,7 +76,7 @@ data Point3D = Point3D !Double !Double !Double deriving (Eq, Show, Read)
 
 instance Vectorable Point3D where
     toVector (Point3D x y z) = fromList [x,y,z]
-    fromVector v = Point3D (v@>0) (v@>1) (v@>3)
+    fromVector v = Point3D (v@>0) (v@>1) (v@>2)
 
 
 -- | homogenous 3D point
@@ -89,7 +92,7 @@ data HLine = HLine {aLn, bLn, cLn :: !Double} deriving (Eq, Show, Read)
 
 instance Vectorable HLine where
     toVector (HLine a b c) = fromList [a,b,c]
-    fromVector v = HLine (v@>0) (v@>1) (v@>3)
+    fromVector v = HLine (v@>0) (v@>1) (v@>2)
 
 
 -- | 3D line (provisional)
@@ -236,4 +239,25 @@ joinPoints p q = HLine (v@>0) (v@>1) (v@>2) where v = crossMat (toVector p) <> (
 meetLines :: HLine -> HLine -> HPoint
 meetLines l m = HPoint (v@>0) (v@>1) (v@>2) where v = crossMat (toVector l) <> (toVector m)
 
+type family Transf a b
+
+class Transformable t x where
+    apTrans :: t -> x -> Transf t x
+
+type instance Transf Homography [HPoint] = [HPoint]
+
+instance Transformable Homography [HPoint] where
+    apTrans h = (map fromVector . toRows) . (<> trans (toMatrix h)) . fromRows . (map toVector)
+
+
+type instance Transf Homography [Point] = [HPoint]
+
+instance Transformable Homography [Point] where
+    apTrans h = apTrans h . map (\(Point x y) -> HPoint x y 1)
+
+
+type instance Transf Homography [HLine] = [HLine]
+
+instance Transformable Homography [HLine] where
+    apTrans h = (map fromVector . toRows) . (<> inv (toMatrix h)) . fromRows . (map toVector)
 
