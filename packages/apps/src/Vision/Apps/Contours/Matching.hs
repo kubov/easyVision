@@ -108,8 +108,6 @@ injectSilent defaultdbs = transUI $ do
         x <- cam
         return (x,p)
 
-
---injectPrototypes :: Renderable [t] => [FilePath] -> ITrans (t, [Shape]) ((t, [Shape]), [(Shape, String)])
 injectUI defaultdbs = transUI $ do
     c <- catalog defaultdbs
     let prepro = id
