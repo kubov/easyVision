@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 --, TypeSynonymInstances,
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
 -----------------------------------------------------------------------------
@@ -26,12 +27,12 @@ module Util.Geometry
 
     Conic, DualConic, Quadric, DualQuadric,
 
-    Vectorable(..), Matrixlike(..),
+    Vectorlike(..), Matrixlike(..),
     mkTrans, Dim2(..),Dim3(..),Dim4(..),
 
   -- * Transformations
 
-    Transf, Transformable(..),    
+    Transformable(..), Composable(..), 
 
   -- * Util
     joinPoints, meetLines
@@ -44,7 +45,7 @@ import Numeric.LinearAlgebra(fromList,(@>),(><),toRows,fromRows,(<>),trans,inv)
 
 ----------------------------------------------------------------------
 
-class Vectorable a
+class Vectorlike a
   where
     toVector   :: a -> Vec
     fromVector :: Vec -> a
@@ -58,7 +59,7 @@ class Matrixlike a where
 -- | inhomogenous 2D point
 data Point = Point {px :: !Double, py :: !Double} deriving (Eq, Show, Read)
 
-instance Vectorable Point where
+instance Vectorlike Point where
     toVector (Point x y) = fromList [x,y]
     fromVector v = Point (v@>0) (v@>1)
 
@@ -66,7 +67,7 @@ instance Vectorable Point where
 -- | inhomogenous 2D point
 data HPoint = HPoint !Double !Double !Double deriving (Eq, Show, Read)
 
-instance Vectorable HPoint where
+instance Vectorlike HPoint where
     toVector (HPoint x y w) = fromList [x,y,w]
     fromVector v = HPoint (v@>0) (v@>1) (v@>2)
 
@@ -74,7 +75,7 @@ instance Vectorable HPoint where
 -- | inhomogenous 3D point
 data Point3D = Point3D !Double !Double !Double deriving (Eq, Show, Read)
 
-instance Vectorable Point3D where
+instance Vectorlike Point3D where
     toVector (Point3D x y z) = fromList [x,y,z]
     fromVector v = Point3D (v@>0) (v@>1) (v@>2)
 
@@ -82,7 +83,7 @@ instance Vectorable Point3D where
 -- | homogenous 3D point
 data HPoint3D = HPoint3D !Double !Double !Double !Double deriving (Eq, Show, Read)
 
-instance Vectorable HPoint3D where
+instance Vectorlike HPoint3D where
     toVector (HPoint3D x y z w) = fromList [x,y,z,w]
     fromVector v = HPoint3D (v@>0) (v@>1) (v@>2) (v@>3)
 
@@ -90,7 +91,7 @@ instance Vectorable HPoint3D where
 -- | 2D line
 data HLine = HLine {aLn, bLn, cLn :: !Double} deriving (Eq, Show, Read)
 
-instance Vectorable HLine where
+instance Vectorlike HLine where
     toVector (HLine a b c) = fromList [a,b,c]
     fromVector v = HLine (v@>0) (v@>1) (v@>2)
 
@@ -105,7 +106,7 @@ instance Matrixlike HLine3D where
 -- | 3D plane
 data HPlane = HPlane !Double !Double !Double !Double deriving (Eq, Show, Read)
 
-instance Vectorable HPlane where
+instance Vectorlike HPlane where
     toVector (HPlane a b c d) = fromList [a,b,c,d]
     fromVector v = HPlane (v@>0) (v@>1) (v@>2) (v@>3)
 
@@ -161,15 +162,15 @@ data Dim2 a = Dim2 !a !a
 data Dim3 a = Dim3 !a !a !a
 data Dim4 a = Dim4 !a !a !a !a
 
-instance Vectorable (Dim2 Double) where
+instance Vectorlike (Dim2 Double) where
     toVector (Dim2 x1 x2) = fromList [x1,x2]
     fromVector v = Dim2 (v@>0) (v@>1)
 
-instance Vectorable (Dim3 Double) where
+instance Vectorlike (Dim3 Double) where
     toVector (Dim3 x1 x2 x3) = fromList [x1,x2,x3]
     fromVector v = Dim3 (v@>0) (v@>1) (v@>2)
 
-instance Vectorable (Dim4 Double) where
+instance Vectorlike (Dim4 Double) where
     toVector (Dim4 x1 x2 x3 x4) = fromList [x1,x2,x3,x4]
     fromVector v = Dim4 (v@>0) (v@>1) (v@>2) (v@>3)
 
@@ -239,25 +240,54 @@ joinPoints p q = HLine (v@>0) (v@>1) (v@>2) where v = crossMat (toVector p) <> (
 meetLines :: HLine -> HLine -> HPoint
 meetLines l m = HPoint (v@>0) (v@>1) (v@>2) where v = crossMat (toVector l) <> (toVector m)
 
-type family Transf a b
+class Transformable t x
+  where
+    type TResult t x :: *
+    apTrans :: t -> x -> TResult t x
 
-class Transformable t x where
-    apTrans :: t -> x -> Transf t x
 
-type instance Transf Homography [HPoint] = [HPoint]
-
-instance Transformable Homography [HPoint] where
+instance Transformable Homography [HPoint]
+  where
+    type TResult Homography [HPoint] = [HPoint]
     apTrans h = (map fromVector . toRows) . (<> trans (toMatrix h)) . fromRows . (map toVector)
 
-
-type instance Transf Homography [Point] = [HPoint]
-
-instance Transformable Homography [Point] where
+instance Transformable Homography [Point]
+  where
+    type TResult Homography [Point] = [HPoint]
     apTrans h = apTrans h . map (\(Point x y) -> HPoint x y 1)
 
-
-type instance Transf Homography [HLine] = [HLine]
-
-instance Transformable Homography [HLine] where
+instance Transformable Homography [HLine]
+  where
+    type TResult Homography [HLine] = [HLine]
     apTrans h = (map fromVector . toRows) . (<> inv (toMatrix h)) . fromRows . (map toVector)
+
+
+class Composable s t
+  where
+    type s :.: t :: *
+    compTrans :: s -> t -> s :.: t  -- s . t
+    (⊙) :: s -> t -> s :.: t
+    infixl 5  ⊙ -- utf8 2299
+    (⊙) = compTrans
+
+instance Composable Homography Homography
+  where
+    type Homography :.: Homography = Homography
+    compTrans s t = unsafeFromMatrix (toMatrix s <> toMatrix t)
+
+instance Composable Homography3D Homography3D
+  where
+    type Homography3D :.: Homography3D = Homography3D
+    compTrans s t = unsafeFromMatrix (toMatrix s <> toMatrix t)
+
+instance Composable Camera Homography3D
+  where
+    type Camera :.: Homography3D = Camera
+    compTrans s t = unsafeFromMatrix (toMatrix s <> toMatrix t)
+
+instance Composable Homography Camera
+  where
+    type Homography :.: Camera = Camera
+    compTrans s t = unsafeFromMatrix (toMatrix s <> toMatrix t)
+
 
