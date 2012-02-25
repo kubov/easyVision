@@ -27,21 +27,26 @@ module Util.Geometry
 
     Conic, DualConic, Quadric, DualQuadric,
 
-    Vectorlike(..), Matrixlike(..),
+    Vectorlike(..), Matrixlike(..), Tensorial(..),
     mkTrans, Dim2(..),Dim3(..),Dim4(..),
 
   -- * Transformations
 
-    Transformable(..), Composable(..), 
+    Transformable(..), Composable(..),
 
   -- * Util
-    joinPoints, meetLines
+    joinPoints, meetLines,
+    
+  -- * Conversion
+    Inhomog(..), Homog(..)
 
 ) where
 
 import Util.Misc(Mat,Vec)
 import Numeric.LinearAlgebra(fromList,(@>),(><),toRows,fromRows,(<>),trans,inv)
 --import Foreign.Storable(Storable)
+import qualified Numeric.LinearAlgebra.Tensor as T
+import qualified Numeric.LinearAlgebra.Array.Util as UT
 
 ----------------------------------------------------------------------
 
@@ -244,6 +249,12 @@ class Transformable t x
   where
     type TResult t x :: *
     apTrans :: t -> x -> TResult t x
+    infixl 2 <|
+    (<|) :: t -> x -> TResult t x
+    (<|) = apTrans
+    infixl 2 ◁  -- 25c1
+    (◁) :: t -> x -> TResult t x
+    (◁) = apTrans
 
 
 instance Transformable Homography [HPoint]
@@ -253,8 +264,8 @@ instance Transformable Homography [HPoint]
 
 instance Transformable Homography [Point]
   where
-    type TResult Homography [Point] = [HPoint]
-    apTrans h = apTrans h . map (\(Point x y) -> HPoint x y 1)
+    type TResult Homography [Point] = [Point]
+    apTrans h = map inhomog . apTrans h . map homog -- FIXME
 
 instance Transformable Homography [HLine]
   where
@@ -266,8 +277,11 @@ class Composable s t
   where
     type s :.: t :: *
     compTrans :: s -> t -> s :.: t  -- s . t
+    (·) :: s -> t -> s :.: t
+    infixr 8  · -- utf8 2299
+    (·) = compTrans
     (⊙) :: s -> t -> s :.: t
-    infixl 5  ⊙ -- utf8 2299
+    infixr 8  ⊙ -- utf8 2299
     (⊙) = compTrans
 
 instance Composable Homography Homography
@@ -290,4 +304,63 @@ instance Composable Homography Camera
     type Homography :.: Camera = Camera
     compTrans s t = unsafeFromMatrix (toMatrix s <> toMatrix t)
 
+
+
+class Inhomog x
+  where
+    type HResult x :: *
+    homog :: x -> HResult x
+
+instance Inhomog Point
+  where
+    type HResult Point = HPoint
+    homog (Point x y) = HPoint x y 1
+
+instance Inhomog Point3D
+  where
+    type HResult Point3D = HPoint3D
+    homog (Point3D x y z) = HPoint3D x y z 1
+
+
+
+class Homog x
+  where
+    type IHResult x :: *
+    inhomog :: x -> IHResult x
+
+instance Homog HPoint
+  where
+    type IHResult HPoint = Point
+    inhomog (HPoint x y w) = Point (x/w) (y/w)
+
+instance Homog HPoint3D
+  where
+    type IHResult HPoint3D = Point3D
+    inhomog (HPoint3D x y z w) = Point3D (x/w) (y/w) (z/w)
+
+
+class Tensorial x
+  where
+    toTensor :: x -> T.Tensor Double
+
+
+instance Tensorial HPoint
+  where
+    toTensor (HPoint x y w) = T.vector [x,y,w]
+    
+instance Tensorial HPoint3D
+  where
+    toTensor (HPoint3D x y z w) = T.vector [x,y,z,w]
+
+instance Tensorial HLine
+  where
+    toTensor (HLine a b c) = T.covector [a,b,c]
+
+instance Tensorial HPlane
+  where
+    toTensor (HPlane a b c d) = T.covector [a,b,c,d]
+
+instance Tensorial HLine3D
+  where
+    toTensor (HLine3D m) = UT.fromMatrix T.Contra T.Contra m
 
