@@ -34,8 +34,8 @@ module Util.Geometry
 
     Transformable(..), Composable(..),
 
-  -- * Util
-    joinPoints, meetLines,
+  -- * Geometric constructions
+    Meet(..), Join(..),
     
   -- * Conversion
     Inhomog(..), Homog(..)
@@ -45,8 +45,10 @@ module Util.Geometry
 import Util.Misc(Mat,Vec)
 import Numeric.LinearAlgebra(fromList,(@>),(><),toRows,fromRows,(<>),trans,inv)
 --import Foreign.Storable(Storable)
+import Data.Function(on)
 import qualified Numeric.LinearAlgebra.Tensor as T
 import qualified Numeric.LinearAlgebra.Array.Util as UT
+import qualified Numeric.LinearAlgebra.Exterior as E
 
 ----------------------------------------------------------------------
 
@@ -339,28 +341,81 @@ instance Homog HPoint3D
     inhomog (HPoint3D x y z w) = Point3D (x/w) (y/w) (z/w)
 
 
-class Tensorial x
-  where
+class Tensorial x where
     toTensor :: x -> T.Tensor Double
 
 
-instance Tensorial HPoint
-  where
+instance Tensorial HPoint where
     toTensor (HPoint x y w) = T.vector [x,y,w]
     
-instance Tensorial HPoint3D
-  where
+instance Tensorial HPoint3D where
     toTensor (HPoint3D x y z w) = T.vector [x,y,z,w]
 
-instance Tensorial HLine
-  where
+instance Tensorial HLine where
     toTensor (HLine a b c) = T.covector [a,b,c]
 
-instance Tensorial HPlane
-  where
+instance Tensorial HPlane where
     toTensor (HPlane a b c d) = T.covector [a,b,c,d]
 
-instance Tensorial HLine3D
-  where
+instance Tensorial HLine3D where
     toTensor (HLine3D m) = UT.fromMatrix T.Contra T.Contra m
+
+instance Tensorial Homography where
+    toTensor (Homography h) = UT.fromMatrix T.Contra T.Co h
+
+instance Tensorial Homography3D where
+    toTensor (Homography3D h) = UT.fromMatrix T.Contra T.Co h
+
+instance Tensorial Camera
+  where
+    toTensor (Camera c) = UT.fromMatrix T.Contra T.Co c
+
+
+class Meet s t where
+    type s :\/: t :: *
+    meet :: s -> t -> s :\/: t
+
+class Join s t where
+    type s :/\: t :: *
+    join :: s -> t -> s :/\: t
+
+instance Meet HLine HLine where
+    type HLine :\/: HLine = HPoint
+    meet = meetLines
+
+instance Join HPoint HPoint where
+    type HPoint :/\: HPoint = HLine
+    join = joinPoints
+
+instance Join Point Point where
+    type Point :/\: Point = HLine
+    join = join `on` homog
+
+instance Join HPoint3D HPoint3D where
+    type HPoint3D :/\: HPoint3D = HLine3D
+    join p q = HLine3D (UT.asMatrix t)
+      where
+        t = ((E./\) `on` toTensor) p q
+
+instance Join Point3D Point3D where
+    type Point3D :/\: Point3D = HLine3D
+    join = join `on` homog
+
+instance Join HPoint3D HLine3D where
+    type HPoint3D :/\: HLine3D = HPlane
+    join p q = fromVector . UT.asVector . E.dual $ t
+      where
+        t =  toTensor p   E./\   toTensor q
+
+instance Join Point3D HLine3D where
+    type Point3D :/\: HLine3D = HPlane
+    join p q = join (homog p) q
+
+instance Join HLine3D HPoint3D where
+    type HLine3D :/\: HPoint3D = HPlane
+    join q p = join p q
+
+instance Join HLine3D Point3D where
+    type HLine3D :/\: Point3D = HPlane
+    join q p = join p q
 
