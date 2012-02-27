@@ -32,7 +32,7 @@ module Util.Geometry
 
   -- * Transformations
 
-    Transformable(..), Composable(..),
+    Transformable(..), Composable(..), Invertible(..),
 
   -- * Geometric constructions
     Meet(..), Join(..),
@@ -139,6 +139,11 @@ instance Matrixlike Homography3D where
     toMatrix (Homography3D m) = m
     unsafeFromMatrix = Homography3D
 
+
+-- | backprojection point -> ray
+newtype InvCamera = InvCamera (T.Tensor Double) deriving (Eq, Show)
+
+
 newtype Conic = Conic Mat deriving (Eq, Show, Read)
 
 instance Matrixlike Conic where
@@ -233,19 +238,7 @@ instance MatrixElem Dim4x4 where
 mkTrans :: (Matrixlike t, MatrixElem (MatrixShape t)) => MatrixShape t -> t
 mkTrans = unsafeFromMatrix . fromElements
 
-crossMat :: Vec -> Mat
-crossMat v = (3><3) [ 0,-c, b,
-                      c, 0,-a,
-                     -b, a, 0]
-    where a = v@>0
-          b = v@>1
-          c = v@>2
-
-joinPoints :: HPoint -> HPoint -> HLine
-joinPoints p q = HLine (v@>0) (v@>1) (v@>2) where v = crossMat (toVector p) <> (toVector q)
-
-meetLines :: HLine -> HLine -> HPoint
-meetLines l m = HPoint (v@>0) (v@>1) (v@>2) where v = crossMat (toVector l) <> (toVector m)
+---------------------------------------------------------------------
 
 class Transformable t x
   where
@@ -274,6 +267,7 @@ instance Transformable Homography [HLine]
     type TResult Homography [HLine] = [HLine]
     apTrans h = (map fromVector . toRows) . (<> inv (toMatrix h)) . fromRows . (map toVector)
 
+---------------------------------------------------------------------
 
 class Composable s t
   where
@@ -306,6 +300,27 @@ instance Composable Homography Camera
     type Homography :.: Camera = Camera
     compTrans s t = unsafeFromMatrix (toMatrix s <> toMatrix t)
 
+---------------------------------------------------------------------
+
+
+class Invertible t
+  where
+    type Inv t :: *
+    invTrans :: t -> Inv t
+
+instance Invertible Homography
+  where
+    type Inv Homography = Homography
+
+instance Invertible Homography3D
+  where
+    type Inv Homography3D = Homography3D
+
+instance Invertible Camera
+  where
+    type Inv Camera = InvCamera
+
+-----------------------------------------------------------------------
 
 
 class Inhomog x
@@ -340,6 +355,7 @@ instance Homog HPoint3D
     type IHResult HPoint3D = Point3D
     inhomog (HPoint3D x y z w) = Point3D (x/w) (y/w) (z/w)
 
+------------------------------------------------------------------------
 
 class Tensorial x where
     toTensor :: x -> T.Tensor Double
@@ -370,6 +386,7 @@ instance Tensorial Camera
   where
     toTensor (Camera c) = UT.fromMatrix T.Contra T.Co c
 
+---------------------------------------------------------------------
 
 class Meet s t where
     type s :\/: t :: *
@@ -379,9 +396,28 @@ class Join s t where
     type s :/\: t :: *
     join :: s -> t -> s :/\: t
 
+-- line line
+
+
+crossMat :: Vec -> Mat
+crossMat v = (3><3) [ 0,-c, b,
+                      c, 0,-a,
+                     -b, a, 0]
+    where a = v@>0
+          b = v@>1
+          c = v@>2
+
+meetLines :: HLine -> HLine -> HPoint
+meetLines l m = HPoint (v@>0) (v@>1) (v@>2) where v = crossMat (toVector l) <> (toVector m)
+
 instance Meet HLine HLine where
     type HLine :\/: HLine = HPoint
     meet = meetLines
+
+-- point point
+
+joinPoints :: HPoint -> HPoint -> HLine
+joinPoints p q = HLine (v@>0) (v@>1) (v@>2) where v = crossMat (toVector p) <> (toVector q)
 
 instance Join HPoint HPoint where
     type HPoint :/\: HPoint = HLine
@@ -401,6 +437,8 @@ instance Join Point3D Point3D where
     type Point3D :/\: Point3D = HLine3D
     join = join `on` homog
 
+-- point line
+
 instance Join HPoint3D HLine3D where
     type HPoint3D :/\: HLine3D = HPlane
     join p q = fromVector . UT.asVector . E.dual $ t
@@ -418,4 +456,8 @@ instance Join HLine3D HPoint3D where
 instance Join HLine3D Point3D where
     type HLine3D :/\: Point3D = HPlane
     join q p = join p q
+
+-- point plane
+
+-- plane plane
 
