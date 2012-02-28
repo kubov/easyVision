@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, ExistentialQuantification, RecordWildCards #-}
+{-# LANGUAGE FlexibleInstances, ExistentialQuantification, RecordWildCards, ViewPatterns #-}
 -----------------------------------------------------------------------------
 {- |
 Module      :  Vision.GUI.Types
@@ -16,7 +16,7 @@ module Vision.GUI.Types
    EVWindow(..), MoveStatus(..), ResizePolicy(..), PauseStatus(..), WinRegion, WStatus(..)
 -- * Drawing abstraction
 ,  Renderable(..), Drawing(..)
-,  color, text, textF, pointSz, lineWd, winTitle, clearColor, draws
+,  color, text, textF, pointSz, lineWd, windowTitle , clearColor, draws
 -- * Tools
 , pointCoordinates, pointCoords
 , pixelCoordinates, pixelCoords
@@ -25,10 +25,11 @@ module Vision.GUI.Types
 , evSize, glSize
 , floatGL, doubleGL
 , prepZoom, unZoom
-, color', pointSz', lineWd'
+, withOrtho2D
+, color', pointSz', lineWd', winTitle
 ) where
 
-import Graphics.UI.GLUT hiding (RGB, Matrix, Size, Point,color,clearColor)
+import Graphics.UI.GLUT hiding (RGB, Matrix, Size, Point,color,clearColor,windowTitle)
 import qualified Graphics.UI.GLUT as GL
 import ImagProc.Base
 import Numeric.LinearAlgebra hiding (step)
@@ -176,6 +177,9 @@ doubleGL = unsafeCoerce -- realToFrac
 floatGL :: Float -> GLfloat
 floatGL = unsafeCoerce -- realToFrac
 
+clampfGL :: Float -> GLclampf
+clampfGL = unsafeCoerce -- realToFrac
+
 --------------------------------------------------------------------------------
 
 data EVWindow st = EVW { evW        :: Window
@@ -240,6 +244,12 @@ instance Renderable (RGB Float) where
                                              (floatGL $ channelBlue)
                                              1
 
+clampfColor :: Colour Float -> Color4 GLclampf
+clampfColor (toSRGB->RGB{..}) = Color4 (clampfGL $ channelRed)
+                                       (clampfGL $ channelGreen)
+                                       (clampfGL $ channelBlue)
+                                       1
+
 instance Renderable (Colour Float) where
     render = render . toSRGB 
 
@@ -268,12 +278,22 @@ textF f p s = Raw (textAtF f p s)
 
 text = textF Helvetica18
 
-winTitle = Raw . (windowTitle $=)
+winTitle = Raw . (GL.windowTitle $=)
 
-clearColor col d = color col [Raw (get currentColor >>= (GL.clearColor $=)), Draw d]
+windowTitle name f = Draw [ winTitle name, Draw f ]
+
+clearColor col d = Draw [ Raw $ GL.clearColor $= clampfColor col, Draw d ]
 
 instance Renderable () where
     render = return
+
+withOrtho2D x1 x2 y1 y2 f = Draw [g, Draw f] 
+  where g = Raw $ do
+                matrixMode $= Projection
+                loadIdentity
+                ortho2D x1 x2 y1 y2
+                matrixMode $= Modelview 0
+                loadIdentity        
 
 -----------------------------------------
 

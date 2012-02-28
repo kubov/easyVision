@@ -2,9 +2,8 @@
 
 module Contours.Matching(
     Shape(..), ShapeMatch(..),
-    shape,
+    shape, shapeMatch,
     elongated, isEllipse,
-    matchShapes, matchShapesSimple
 ) where
 
 import Control.Arrow((***),(&&&))
@@ -40,6 +39,7 @@ data Shape = Shape { shapeContour  :: Polyline
                    , whiteShape    :: Polyline
                    , invAffine     :: Vec
                    , invSimil      :: Vec
+                   , invKS         :: Vec
                    , kAngles       :: [Double]
                    , kFeats        :: [CVec]
                    , kHyps         :: [(CVec,Mat)]
@@ -58,7 +58,8 @@ analyzeShape mW (p,(mx,my,cxx,cyy,cxy)) = Shape {..}
     whiteShape = transPol shapeWhitener p
     fou = fourierPL whiteShape
     invAffine = fromList $ map (magnitude.fou) [-mW .. mW]
-
+    invKS = 0 --FIXME
+    
     kAngles = icaAngles whiteShape >>= (\a -> [a,a+pi])
     kFeats = map f kAngles
       where
@@ -88,6 +89,7 @@ data ShapeMatch = ShapeMatch
     , label      :: String
     , target     :: Shape
     , invDist    :: Double
+    , ksDist     :: Double
     , alignDist  :: Double
     , wt, wp, wa :: Mat
     , waRot      :: Double
@@ -104,8 +106,10 @@ shapeMatch prots c = map (match c) prots
         label = l
         target = x
         invDist = (dist `on` invAffine) x y
-        dist a b = norm (a-b)    
-        (alignDist,((ft,wt),(fp,wp))) = minimumBy (compare `on` fst) [ (d ht hp, (ht,hp)) | hp <- take 8 (kHyps proto), ht <- kHyps target]
+        ksDist = (dist `on` invKS) x y
+        dist a b = norm (a-b)
+        (alignDist,((ft,wt),(fp,wp))) = minimumBy (compare `on` fst)
+            [ (d ht hp, (ht,hp)) | hp <- take 8 (kHyps proto), ht <- kHyps target]
         d (u,_) (v,_) = pnorm PNorm2 (u-v)
         wa = inv (wt <> shapeWhitener target) <> wp <> shapeWhitener proto
         (waRot, waSkew, waScaleRat) = rotTrans wa
@@ -125,17 +129,6 @@ rotTrans w = (rho,skew,rat)
     skew = abs (pi/2 - (abs $ acos $ (dx*ex + dy*ey) / (e*d)))
   
 ----------------------------------------------------------------------  
-  
-matchShapes th1 th2 ((x,cs),prots) = (x, map (filterGood . shapeMatch prots) cs)
-  where
-    filterGood = sortBy (compare `on` alignDist) . filter good
-    good m = invDist m < th1 && alignDist m < th2
-
-matchShapesSimple th ((x,cs),prots) = (x, map (filterGood . shapeMatch prots) cs)
-  where
-    filterGood = sortBy (compare `on` invDist) . filter ((<th).invDist)
-
-----------------------------------------------------------------------
 
 -- | checks if a polyline is very similar to an ellipse.
 isEllipse :: Int -- ^ tolerance (per 1000 of total energy) (e.g. 10)
