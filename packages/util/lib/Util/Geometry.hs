@@ -32,7 +32,7 @@ module Util.Geometry
 
   -- * Transformations
 
-    Transformable(..), Composable(..), Invertible(..),
+    Transformable(..), Composable(..), Invertible(..), BackTransformable(..),
 
   -- * Geometric constructions
     Meet(..), Join(..),
@@ -252,10 +252,14 @@ class Transformable t x
     (◁) = apTrans
 
 
+apMat :: (Vectorlike a, Vectorlike b, Matrixlike t)
+      => (Mat -> Mat) -> t -> [a] -> [b]
+apMat g h = (map fromVector . toRows) . (<> (g.trans) (toMatrix h)) . fromRows . (map toVector)
+
 instance Transformable Homography [HPoint]
   where
     type TResult Homography [HPoint] = [HPoint]
-    apTrans h = (map fromVector . toRows) . (<> trans (toMatrix h)) . fromRows . (map toVector)
+    apTrans = apMat id
 
 instance Transformable Homography [Point]
   where
@@ -265,16 +269,47 @@ instance Transformable Homography [Point]
 instance Transformable Homography [HLine]
   where
     type TResult Homography [HLine] = [HLine]
-    apTrans h = (map fromVector . toRows) . (<> inv (toMatrix h)) . fromRows . (map toVector)
+    apTrans = apMat (inv.trans)
 
 ---------------------------------------------------------------------
+
+class BackTransformable t x
+  where
+    type BResult t x :: *
+    bTrans :: t -> x -> BResult t x
+    infixl 2 |>
+    (|>) :: x -> t -> BResult t x
+    (|>) = flip bTrans
+    infixl 2 ▷ -- 25b7
+    (▷) :: x -> t -> BResult t x
+    (▷) = flip bTrans
+
+
+instance BackTransformable Homography [HLine]
+  where
+    type BResult Homography [HLine] = [HLine]
+    bTrans = apMat trans
+
+instance BackTransformable Homography3D [HPlane]
+  where
+    type BResult Homography3D [HPlane] = [HPlane]
+    bTrans = apMat trans
+
+instance BackTransformable Camera [HLine]
+  where
+    type BResult Camera [HLine] = [HPlane]
+    bTrans = apMat trans
+
+---------------------------------------------------------------------
+
+
 
 class Composable s t
   where
     type s :.: t :: *
     compTrans :: s -> t -> s :.: t  -- s . t
     (·) :: s -> t -> s :.: t
-    infixr 8  · -- utf8 2299
+    infixr 8  ·
     (·) = compTrans
     (⊙) :: s -> t -> s :.: t
     infixr 8  ⊙ -- utf8 2299
