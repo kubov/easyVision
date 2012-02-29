@@ -100,15 +100,16 @@ instance Vertex Point where
     vertexv = undefined
 
 instance Vertex HPoint where
-    vertex (HPoint x y w) = vertex (Vertex4 (doubleGL x) (doubleGL y) 0 (doubleGL w))
+    vertex (HPoint x y w) = vertex (HPoint3D x y 0 w)
     vertexv = undefined
 
 instance Vertex Point3D where
     vertex (Point3D x y z) = vertex (Vertex3 (doubleGL x) (doubleGL y) (doubleGL z))
     vertexv = undefined
 
-instance Vertex HPoint3D where
-    vertex (HPoint3D x y z w) = vertex (Vertex4 (doubleGL x) (doubleGL y) (doubleGL z) (doubleGL w))
+instance Vertex HPoint3D where -- FIXME !??
+    vertex (HPoint3D x y z w) | w > 0     = vertex (Vertex4 (doubleGL x) (doubleGL y) (doubleGL z) (doubleGL w))
+                              | otherwise = vertex (Vertex4 (-doubleGL x) (-doubleGL y) (-doubleGL z) (-doubleGL w))
     vertexv = undefined
 
 

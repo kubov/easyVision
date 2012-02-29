@@ -492,7 +492,19 @@ instance Join HLine3D Point3D where
     type HLine3D :/\: Point3D = HPlane
     join q p = join p q
 
--- point plane
+-- line plane
+
+instance Meet HPlane HLine3D where
+    type HPlane :\/: HLine3D = HPoint3D
+    meet p l = fromVector $ UT.asVector $ E.dual ((E.switch . toTensor $ p) E./\ E.dual (toTensor l))
+
+instance Meet HLine3D HPlane where
+    type HLine3D :\/: HPlane = HPoint3D
+    meet l p = meet p l
 
 -- plane plane
+
+instance Meet HPlane HPlane where
+    type HPlane :\/: HPlane = HLine3D
+    meet p q = HLine3D . UT.asMatrix . E.dual $ (E.switch . toTensor $ p) E./\ (E.switch . toTensor $ q)
 
