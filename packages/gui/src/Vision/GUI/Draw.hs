@@ -33,6 +33,7 @@ module Vision.GUI.Draw
 , viewPoint
 , points'
 , lineStrip, axes3D, text3DAtF
+, drawPolygon
 ) where
 
 import Graphics.UI.GLUT hiding (RGB, Matrix, Size, Point,color)
@@ -432,6 +433,9 @@ points' = Draw
 
 lineStrip :: Vertex a => [a] -> Drawing
 lineStrip = Raw . GL.renderPrimitive GL.LineStrip . mapM_ GL.vertex
+
+drawPolygon :: Vertex a => [a] -> Drawing
+drawPolygon = Raw . GL.renderPrimitive GL.Polygon . mapM_ GL.vertex
 
 ------------------------------------------------------------
 
