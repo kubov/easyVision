@@ -1,8 +1,8 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
---, TypeSynonymInstances,
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FunctionalDependencies #-}
 -----------------------------------------------------------------------------
 {- |
 Module      :  Util.Geometry
@@ -28,7 +28,7 @@ module Util.Geometry
     Conic, DualConic, Quadric, DualQuadric,
 
     Vectorlike(..), Matrixlike(..), Tensorial(..),
-    mkTrans, Dim2(..),Dim3(..),Dim4(..),
+    mkTrans, Dim2(..),Dim3(..),Dim4(..), Build, (!), (#),
 
   -- * Transformations
 
@@ -170,9 +170,34 @@ instance Matrixlike DualQuadric where
     unsafeFromMatrix = DualQuadric
 
 
-data Dim2 a = Dim2 !a !a
-data Dim3 a = Dim3 !a !a !a
-data Dim4 a = Dim4 !a !a !a !a
+data Dim2 a = Dim2 !a !a        deriving (Eq, Show, Read)
+data Dim3 a = Dim3 !a !a !a     deriving (Eq, Show, Read)
+data Dim4 a = Dim4 !a !a !a !a  deriving (Eq, Show, Read)
+
+
+
+class Build p e g | e p -> g, g -> e, g -> p
+  where
+    build :: p -> e -> g
+
+infixl 3 !
+(!) :: Build p e g => p -> e -> g
+(!) = build
+
+infixl 2 #
+(#) :: Build p e g => p -> e -> g
+(#) = build
+
+instance Build a a (Dim2 a) where
+    build = Dim2
+
+instance Build (Dim2 a) a (Dim3 a) where
+    build (Dim2 x y) a = Dim3 x y a
+
+instance Build (Dim3 a) a (Dim4 a) where
+    build (Dim3 x y z) a = Dim4 x y z a
+
+
 
 instance Vectorlike (Dim2 Double) where
     toVector (Dim2 x1 x2) = fromList [x1,x2]
