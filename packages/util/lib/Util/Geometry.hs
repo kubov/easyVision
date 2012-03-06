@@ -371,14 +371,26 @@ class Invertible t
 instance Invertible Homography
   where
     type Inv Homography = Homography
+    invTrans (Homography h) = Homography (inv h)
 
 instance Invertible Homography3D
   where
     type Inv Homography3D = Homography3D
+    invTrans (Homography3D h) = Homography3D (inv h)
 
 instance Invertible Camera
   where
     type Inv Camera = InvCamera
+    invTrans c = InvCamera t
+      where
+        tc = toTensor c
+        t = eps3 T.! "ijk" * tc T.! "ip" * tc T.! "jq" * eps4 T.! "pqrs"
+
+eps3 :: E.Tensor Double
+eps3 = T.cov (E.leviCivita 3)
+
+eps4 :: E.Tensor Double
+eps4 = T.contrav (E.leviCivita 4)
 
 -----------------------------------------------------------------------
 
@@ -445,6 +457,10 @@ instance Tensorial Homography3D where
 instance Tensorial Camera
   where
     toTensor (Camera c) = UT.fromMatrix T.Contra T.Co c
+
+instance Tensorial InvCamera
+  where
+    toTensor (InvCamera t) = t
 
 ---------------------------------------------------------------------
 
