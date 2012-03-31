@@ -129,6 +129,17 @@ interfaceG threeD sz0 name st0 ft upds acts resultFun resultDisp = do
         roi <- get (evRegion w)
         let (newState, result) = resultFun roi state thing
         putW w newState
+        
+        saved <- get currentWindow
+        currentWindow $= Just (evW w)
+        evInit w
+        renderIn w (resultDisp roi newState result)
+        drawRegion w
+        swapBuffers
+        currentWindow $= saved
+        join . get . evAfterD $ w
+        
+        {-
         pause <- readIORef (evPause w)
         when (not (pause==PauseDraw)) $ swapMVar (evDraw w) (resultDisp roi newState result) >> return ()
         swapMVar(evReady w) True
@@ -136,6 +147,7 @@ interfaceG threeD sz0 name st0 ft upds acts resultFun resultDisp = do
         sync <- readIORef (evSync w)
         when sync $ postRedisplay (Just (evW w))
         modifyIORef (evStats w) (\s -> s { evNCall = evNCall s + 1 })
+        -}
         return result
 
 drawRegion w = do
