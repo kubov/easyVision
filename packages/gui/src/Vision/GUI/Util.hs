@@ -193,7 +193,8 @@ dummy :: IO (IO ())
 dummy = return (threadDelay 100000 >> return ())
 
 
-run t = runT_ camera (t >>> optDo "--freq" freqMonitor) 
+-- run t = runT_ camera (t >>> optDo "--freq" freqMonitor) 
+run t = prepare >> runNT_ camera t
 
 --------------------------------------------------------------------------------
 
