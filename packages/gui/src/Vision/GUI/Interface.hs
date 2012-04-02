@@ -101,7 +101,7 @@ interfaceG threeD sz0 name st0 ft upds acts resultFun resultDisp = do
     let evWin = if threeD then evWin3D' else evWindow
     w <- evWin st0 name sz0 Nothing (keyAction upds acts kbdQuit)
 
-    displayCallback $= do
+    let drawf = do
         evInit w
         dr <- readMVar (evDraw w)
         renderIn w dr
@@ -109,7 +109,10 @@ interfaceG threeD sz0 name st0 ft upds acts resultFun resultDisp = do
         swapBuffers
         join . get . evAfterD $ w
         --putStrLn "  D"
+        
+    displayCallback $= drawf
 
+{-
     callbackFreq 5 $ do
         visible <- get (evVisible w)
         sync <- readIORef (evSync w)
@@ -118,6 +121,7 @@ interfaceG threeD sz0 name st0 ft upds acts resultFun resultDisp = do
             postRedisplay (Just (evW w))
             swapMVar (evReady w) False
             return ()
+-}
 
     pauser <- newPauser (evPause w)
 
@@ -131,24 +135,15 @@ interfaceG threeD sz0 name st0 ft upds acts resultFun resultDisp = do
             drawing = resultDisp roi newState result
         putW w newState
         
-        
         pause <- readIORef (evPause w)
         
-        
         when (not (pause==PauseDraw)) $ swapMVar (evDraw w) drawing  >> return ()
-        swapMVar(evReady w) True
-        --putStrLn "W"
-        sync <- readIORef (evSync w)
-        when sync $ do
-            saved <- get currentWindow
-            currentWindow $= Just (evW w)
-            evInit w
-            renderIn w drawing
-            drawRegion w
-            swapBuffers
-            currentWindow $= saved
-            join . get . evAfterD $ w
         
+        saved <- get currentWindow
+        currentWindow $= Just (evW w)
+        drawf
+        currentWindow $= saved
+
         modifyIORef (evStats w) (\s -> s { evNCall = evNCall s + 1 })
         
         return result
