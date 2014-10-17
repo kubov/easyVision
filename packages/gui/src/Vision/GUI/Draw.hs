@@ -80,7 +80,7 @@ myDrawPixels m@Img{itype=YUV} = error "myDrawPixels undefined for YUV"
 -- | Draws an image 32f as a texture in the current window, in the desired 3D coordinates corresponding to (0,0), (1,0), (1,1), (0,1). (Drawing is very fast if the sizes are powers of 2.)
 drawTexture' :: ImageFloat -> [[Double]] -> IO ()
 drawTexture' (F im) [v1,v2,v3,v4] = do
-    texImage2D  Nothing
+    texImage2D  Texture2D
                 NoProxy
                 0
                 Luminance'

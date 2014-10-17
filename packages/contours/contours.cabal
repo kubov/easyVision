@@ -20,7 +20,7 @@ extra-source-files:
 library
     Build-Depends:      base >= 3 && < 5,
                         hmatrix, vision, imagproc,
-                        patrec, prcv-util
+                        patrec, prcv-util, hmatrix-gsl
 
     hs-source-dirs:     src
 

@@ -201,12 +201,12 @@ poseFromHomogZ0 :: Maybe Double      -- ^ focal distance (if known)
                 -> Maybe CameraParameters      -- ^ solution (the one above the floor)
 poseFromHomogZ0 mbf = fmap poseFromCamera . cameraFromHomogZ0 mbf
 
-extractColumns :: (Element t) => [Int] -> Matrix t -> Matrix t
-extractColumns cs = trans . extractRows cs . trans
+extractColumns' :: (Element t) => [Int] -> Matrix t -> Matrix t
+extractColumns' cs = trans . extractRows cs . trans
 
 -- | Obtains the homography floor (Z=0) to image from a camera
 homogZ0 :: Mat -> Mat
-homogZ0 cam = extractColumns [0,1,3] cam
+homogZ0 cam = extractColumns' [0,1,3] cam
 
 -- | Recovers a camera matrix from the homography floor (Z=0) to image. There are actually two solutions, above and below the ground. We return the camera over the floor
 cameraFromHomogZ0 :: Maybe Double              -- ^ focal distance (if known)
