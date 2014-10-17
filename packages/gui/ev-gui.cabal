@@ -27,7 +27,7 @@ library
                         contours,
                         base >= 3 && < 5, time,
                         colour >= 2.2,
-                        OpenGL, GLUT,
+                        OpenGL >= 2.9.2.0, GLUT,
                         containers, process, directory,
                         template-haskell, ghc-prim,
                         arrows
