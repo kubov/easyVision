@@ -4,7 +4,7 @@ import Image.ROI(roi2poly)
 import qualified OpenCV
 
 main = do
-    faceDetector <- OpenCV.cascadeClassifier "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt.xml"
+    faceDetector <- OpenCV.cascadeClassifier "/usr/share/OpenCV/haarcascades/haarcascade_frontalface_alt.xml"
     run $ arr yCh
         >>> observe "opencv face detector" (sh faceDetector)
 

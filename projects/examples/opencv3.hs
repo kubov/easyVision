@@ -1,6 +1,5 @@
 -- findHomography from OpenCV does not get minimum RMS error?
 
-import Devel.Vision.DLT
 import OpenCV (findHomography)
 import Numeric.LinearAlgebra
 import Util.Homogeneous((!<>))
